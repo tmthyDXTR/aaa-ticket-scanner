@@ -1,0 +1,89 @@
+<html>
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+        <title>AAA KASSIERER</title>
+    </head>
+    <body>
+        <div class="center">
+            <center><h2>AAA KASSIERER</h2></center>
+            <br>
+            <label for="scan-box">Click to copy</label>
+            <form action="php/ticket-scan.php" method="post">
+                <textarea id="scan-box" readonly class="center" name="scan-box" rows="1" cols="10" onclick="this.select();document.execCommand('copy');if(this.value!==''){alert('Code copied')}">
+                </textarea>
+            </form>
+            <br>
+            <!-- <button type="button" id="status-btn" class="center">IDLE</button> -->
+            <div class="center">
+                <button class="btn btn-primary info-btn" type="button" disabled id="status-btn">
+                    <span id="status-msg"></span><span class="spinner-border spinner-border-sm center" role="status" aria-hidden="true" id="status-spinner"></span>
+                </button>
+                <br>
+                <br>
+                <button type="button" class="btn btn-success info-btn" disabled id="result-box">
+                    <span id="result-msg"></span>
+                </button>
+            </div>
+            <br>
+            <div class="">
+                <table class="table" id="history-table">
+                    <thead>
+                    <tr>
+                        <th scope="col">T</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Code</th>
+                        <th scope="col">Result</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    
+                    </tbody>
+                </table>
+            </div>
+
+
+            <br>
+            <div class="accordion" id="guest-list-accordion">
+                <div class="accordion-item">
+                    <p class="accordion-header" id="accordion-header">
+                        <button id="guest-list-btn" class="accordion-button" onclick="loadGuestList()" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        GUEST LIST
+                        </button>
+                    </p>
+                    <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#guest-list-accordion">
+                        <div class="accordion-body">
+                            <label for="suche-input" class="form-label">SEARCH</label>
+                            <input onkeyup="searchGuest()" class="form-control" list="datalistOptions" id="suche-input" placeholder="Tippitappisuchsuch...">
+                
+
+                            <table class="table" id="guest-list-table">
+                                <thead>
+                                <tr>
+                                    <th scope="col">NAME</th>
+                                    <th scope="col">BAND/COMP</th>
+                                    <th scope="col">TYPE</th>
+                                    <th scope="col">CHECKED IN</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+              </div>
+        </div>
+    </body>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
+    <script src="scripts/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.5/dist/umd/popper.min.js" integrity="sha384-Xe+8cL9oJa6tN/veChSP7q+mnSPaj5Bcu9mPX5F5xIGE0DVittaqT5lorf0EI7Vk" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.min.js" integrity="sha384-ODmDIVzN+pFdexxHEHFBQH3/9/vQ9uori45z4JjnFsRydbmQbmL5t1tQ0culUzyK" crossorigin="anonymous"></script>
+    </html>
