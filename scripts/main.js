@@ -1,335 +1,212 @@
+// main.js
+
 console.log("main.js loaded");
 
-const scanbox = document.getElementById("scan-box");
-if (scanbox) {
-    scanbox.value = "";
-    scanbox.focus();
-}
-const statusMsg = document.getElementById("status-msg");
-if (statusMsg) {
-    statusMsg.innerHTML = "NOT READY (window must be active)";
-    document.getElementById("status-btn").classList.remove("btn-primary");
-    document.getElementById("status-btn").classList.add("btn-warning");
-}
-const resultBox = document.getElementById("result-box");
-if (resultBox) {
-    resultBox.innerHTML = "RESULT";
-    resultBox.style.visibility = "hidden";
-}
-const statusSpinner = document.getElementById("status-spinner");
-if (statusSpinner) {
-    statusSpinner.style.display = "none";
-}
-
-var isOnFocus = true;  
-window.onblur = function(){  
-    isOnFocus = false;  
-    statusMsg.innerHTML = "NOT READY (window must be active)";
-    document.getElementById("status-btn").classList.remove("btn-primary");
-    document.getElementById("status-btn").classList.add("btn-warning");
-
-    statusSpinner.style.display = "none";
-}  
-window.onfocus = function(){  
-    isOnFocus = true;  
-    statusMsg.innerHTML = "READY";
-    document.getElementById("status-btn").classList.add("btn-primary");
-    document.getElementById("status-btn").classList.remove("btn-warning");
-
-    statusSpinner.style.display = "none";
-}
-
-
-var isScanning = false;
-var scanResult = "";
-var cnt = 0;
-
-var scanHistory;
-if (localStorage.getItem('scanHistory') === null) {
-    scanHistory = [];
-}
-else {
-    scanHistory = JSON.parse(localStorage.getItem('scanHistory'));
-}
-var scanHistArr;
-if (localStorage.getItem('scanHistoryInfo') === null) {
-    scanHistArr = [];
-}
-else {
-    scanHistArr = JSON.parse(localStorage.getItem('scanHistoryInfo'));
-    for (var i = 0; i <= 4; i++) {
-        // UPDATE HISTORY TABLE
-        var table = document.getElementById("history-table");
-
-        // Create an empty <tr> element and add it to the 1st position of the table:
-        var row = table.insertRow(1);
-
-        // Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
-        var cell1 = row.insertCell(0);
-        var cell2 = row.insertCell(1);
-        var cell3 = row.insertCell(2);
-        var cell4 = row.insertCell(3);
-
-        // Add some text to the new cells:
-        cell1.innerHTML = scanHistArr[i][0];
-        cell2.innerHTML = scanHistArr[i][1];
-        cell3.innerHTML = scanHistArr[i][2];
-        cell4.innerHTML = scanHistArr[i][3];
+// Initialize and reset input fields and UI elements
+document.addEventListener("DOMContentLoaded", () => {
+    const scanbox = document.getElementById("scan-box");
+    if (scanbox) {
+        scanbox.value = "";
+        scanbox.focus();
     }
-}
 
+    const statusMsg = document.getElementById("status-msg");
+    if (statusMsg) {
+        updateStatus("NOT READY (window must be active)", "btn-warning");
+    }
 
-document.onkeypress = function(evt) {
-    if (document.getElementById("guest-list-btn").classList.contains("collapsed")) {
-        isScanning = true;
-        statusSpinner.style.display = "block";
+    const resultBox = document.getElementById("result-box");
+    if (resultBox) {
+        resultBox.innerHTML = "RESULT";
         resultBox.style.visibility = "hidden";
-        evt = evt || window.event;
-        evt.preventDefault();
-        var charCode = evt.keyCode || evt.which;
-        // console.log(charCode);
-        var charStr = String.fromCharCode(charCode);
-        // console.log(charStr);
-        if (isScanning && charCode !== 13) {
-            console.log("is Scanning");
-            statusMsg.innerHTML = "SCANNING " + cnt++;
-            scanResult += charStr;
-        } 
-        if (charCode === 13) {
-            isScanning = false;
-            console.log("scan complete");
-            console.log("scan result: " + scanResult);
-            // QR Code string clean up
-            var strSplit = scanResult.split("&");
-            var secCode = strSplit[3].split("=")[1];
-            console.log("scanned security code: " + secCode);
-            // CHECK SECURITY CODE
-            checkCode(secCode);
-            scanResult = "";
-            cnt = 0;
-        }
     }
-    
 
+    const statusSpinner = document.getElementById("status-spinner");
+    if (statusSpinner) {
+        statusSpinner.style.display = "none";
+    }
+
+    loadHistoryTable();
+});
+
+// Track focus state to ensure proper functionality
+var isOnFocus = true;
+window.onblur = () => {
+    isOnFocus = false;
+    updateStatus("NOT READY (window must be active)", "btn-warning");
 };
 
+window.onfocus = () => {
+    isOnFocus = true;
+    updateStatus("READY", "btn-primary");
+};
 
-var scanHistoryInfo = "No info";
-var typeInfo = "-"
+// Helper function to update status message and button style
+function updateStatus(message, buttonClass) {
+    const statusMsg = document.getElementById("status-msg");
+    const statusBtn = document.getElementById("status-btn");
 
-function checkCode(code) {
-    if (code.length != 10) {
-        return;
+    if (statusMsg) statusMsg.innerHTML = message;
+    if (statusBtn) {
+        statusBtn.classList.remove("btn-primary", "btn-warning");
+        statusBtn.classList.add(buttonClass);
     }
-    scanbox.value = code;
-    document.getElementById("status-btn").classList.add("btn-primary");
-    document.getElementById("status-btn").classList.remove("btn-warning");
+    const statusSpinner = document.getElementById("status-spinner");
+    if (statusSpinner) statusSpinner.style.display = "none";
+}
 
+// Scanning logic and handling
+var isScanning = false;
+var scanResult = "";
+var scanHistory = JSON.parse(localStorage.getItem('scanHistory')) || [];
+var scanHistArr = JSON.parse(localStorage.getItem('scanHistoryInfo')) || [];
+
+// Keypress event for scanning
+document.onkeypress = (evt) => {
+    const isCollapsed = document.getElementById("guest-list-btn").classList.contains("collapsed");
+    if (isCollapsed) {
+        startScanning(evt);
+    }
+};
+
+function startScanning(evt) {
+    isScanning = true;
+    const statusSpinner = document.getElementById("status-spinner");
+    const resultBox = document.getElementById("result-box");
+    const statusMsg = document.getElementById("status-msg");
+
+    if (statusSpinner) statusSpinner.style.display = "block";
+    if (resultBox) resultBox.style.visibility = "hidden";
+    if (statusMsg) statusMsg.innerHTML = `SCANNING ${scanResult.length}`;
+
+    evt.preventDefault();
+    const charCode = evt.keyCode || evt.which;
+
+    if (isScanning && charCode !== 13) {
+        scanResult += String.fromCharCode(charCode);
+    } else if (charCode === 13) {
+        finalizeScan();
+    }
+}
+
+function finalizeScan() {
+    isScanning = false;
+    const securityCode = extractSecurityCode(scanResult);
+    if (securityCode) {
+        checkCode(securityCode);
+    }
     scanResult = "";
-    cnt = 0;
-    
+}
 
-    var response = $.ajax(
-        {
-            type: "POST",
-            url: "ticket-scan.php",
-            data: {secCode: code},
-            async: false,
-        })
-        .done(function(response) {
-            resultBox.classList.remove("btn-warning");
-            resultBox.classList.add("btn-success");
-            var data = JSON.parse(response);
-            
-            console.log(data);
-            if (data.length == 0) {
-                resultBox.classList.add("btn-warning");
-                resultBox.classList.remove("btn-success");
-                resultBox.innerHTML = "NOT FOUND";
-            }
-            // RESPONSE CASES; PAYMENT CLOSED? ALREADY SCANNED?
-            else if (data['Einchecken'] == null && data['Bestellstatus'] == "Abgeschlossen") {
-                resultBox.innerHTML = '<b>CHECK IN SUCCESS</b><br><br>'
-                                    + data['Sicherheitscode'] + '<br><b>'
-                                    + data['Karte'].toUpperCase() + '</b><br>'
-                                    + data['Name_des_Käufers'].toUpperCase();   
-                scanHistoryInfo = "CHECK IN";
-            }
-            else if (data['Einchecken'] != null) {
-                resultBox.classList.add("btn-warning");
-                resultBox.classList.remove("btn-success");
-                resultBox.innerHTML = '<b>ALREADY CHECKED IN</b><br><br>'
-                                    + data['Sicherheitscode'] + '<br>'
-                                    + data['Karte'].toUpperCase() + '<br>'
-                                    + data['Name_des_Käufers'].toUpperCase() + '<br><b>'
-                                    + data['Einchecken'];
-                scanHistoryInfo = "ALREADY CHECKED";
-            }
-            else {
-                resultBox.classList.add("btn-warning");
-                resultBox.classList.remove("btn-success");
-                resultBox.innerHTML = '<b>NO CHECK IN <br><br></b>'
-                + data['Sicherheitscode'] + '<br>'
-                + data['Karte'].toUpperCase() + '<br>'
-                + data['Name_des_Käufers'].toUpperCase() + '</b><br>'
-                + 'Zahlung: ' +data['Bestellstatus'].toUpperCase() + '</b><br>'
-                + data['Karte_ID'].toUpperCase();   
-                scanHistoryInfo = "NO CHECK IN";
-            }
-            typeInfo = data['Karte'];
-        })
-        .fail(function(xhr, status, error){
-            var errorMessage = xhr.status + ': ' + xhr.statusText
-            resultBox.classList.add("btn-warning");
-            resultBox.classList.remove("btn-success");
-            resultBox.innerHTML = "Error: " + errorMessage;
-            scanHistoryInfo = "ERROR";
-        })
-        .always(function() {
-            resultBox.style.visibility = "visible";
-            statusMsg.innerHTML = "READY";
-            statusSpinner.style.display = "none";
-        });
+// Extract security code from the scanned result
+function extractSecurityCode(result) {
+    const parts = result.split("&");
+    if (parts.length > 3) {
+        return parts[3].split("=")[1];
+    }
+    return null;
+}
 
-    // SCAN HISTORY
-    scanHistory.includes(code) ? console.log("already scanned") : scanHistory.push(code);
-    localStorage.setItem("scanHistory", JSON.stringify(scanHistory));
-    
-    var timeElapsed = Date.now();
-    var today = new Date(timeElapsed);
-    today.toUTCString();
-    var d = today.toString();
-    var c = d.split(" ");
-    console.log(c);
-    var goodTime = c[2] + " " + c[1] + " " + c[4];
-    var histEntry = [goodTime, typeInfo, code, scanHistoryInfo];
-    scanHistArr.push(histEntry);
-    localStorage.setItem("scanHistoryInfo", JSON.stringify(scanHistArr));
-    console.log("scan history: " +scanHistory);
-    console.log("scan info length :" + scanHistArr.length);
-    // UPDATE HISTORY TABLE
-    var table = document.getElementById("history-table");
-    
-    // Create an empty <tr> element and add it to the 1st position of the table:
-    var row = table.insertRow(1);
+// Validate and process scanned code
+function checkCode(code) {
+    if (code.length !== 10) return;
 
-    // Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
-    var cell1 = row.insertCell(0);
-    var cell2 = row.insertCell(1);
-    var cell3 = row.insertCell(2);
-    var cell4 = row.insertCell(3);
+    const scanbox = document.getElementById("scan-box");
+    const resultBox = document.getElementById("result-box");
 
-    // Add some text to the new cells:
-    cell1.innerHTML = histEntry[0];
-    cell2.innerHTML = histEntry[1];
-    cell3.innerHTML = histEntry[2];
-    cell4.innerHTML = histEntry[3];
+    if (scanbox) scanbox.value = code;
 
-    if (table.rows.length > 6) {
-        table.deleteRow(6);
+    $.ajax({
+        type: "POST",
+        url: "ticket-scan.php",
+        data: { secCode: code },
+        success: (response) => processScanResponse(response, code),
+        error: handleError,
+        complete: () => {
+            if (resultBox) resultBox.style.visibility = "visible";
+            updateStatus("READY", "btn-primary");
+        },
+    });
+}
+
+// Handle AJAX response for scanning
+function processScanResponse(response, code) {
+    const resultBox = document.getElementById("result-box");
+    const data = JSON.parse(response);
+
+    if (!data.length) {
+        showScanResult(resultBox, "NOT FOUND", "btn-warning");
+    } else if (!data['Einchecken'] && data['Bestellstatus'] === "Abgeschlossen") {
+        showScanResult(resultBox, formatCheckInSuccess(data), "btn-success");
+    } else if (data['Einchecken']) {
+        showScanResult(resultBox, formatAlreadyCheckedIn(data), "btn-warning");
+    } else {
+        showScanResult(resultBox, formatNoCheckIn(data), "btn-warning");
+    }
+
+    updateHistory(code, data);
+}
+
+// Display scan results in the UI
+function showScanResult(resultBox, message, buttonClass) {
+    if (resultBox) {
+        resultBox.classList.remove("btn-warning", "btn-success");
+        resultBox.classList.add(buttonClass);
+        resultBox.innerHTML = message;
     }
 }
 
-
-
-function loadGuestList() {
-    var btn = document.getElementById("guest-list-btn");
-    if (btn.classList.contains("collapsed")) return;
-    console.log("Load guest list");
-    var table = document.getElementById("guest-list-table");
-    table.innerHTML = `<thead>
-    <tr>
-        <th scope="col">NAME</th>
-        <th scope="col">BAND/COMP</th>
-        <th scope="col">TYPE</th>
-        <th scope="col">CHECKED IN</th>
-    </tr>
-    </thead>
-    <tbody>
-    
-    </tbody>`;
-
-    var response = $.ajax(
-        {
-            type: "POST",
-            url: "get-guest-list.php",
-            data: {get: "get"},
-            async: false,
-        })
-        .done(function(response) {
-            var data = JSON.parse(response);
-            // UPDATE GUEST LIST TABLE
-            table = document.getElementById("guest-list-table");
-            
-            for (var i = 0; i <= data.length - 1; i++) {        
-                // Create an empty <tr> element and add it to the 1st position of the table:
-                var row = table.insertRow(1);
-        
-                // Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
-                var cell1 = row.insertCell(0);
-                var cell2 = row.insertCell(1);
-                var cell3 = row.insertCell(2);
-                var cell4 = row.insertCell(3);
-        
-                // Add some text to the new cells:
-                cell1.innerHTML = data[i]['guest_list_name'];
-                cell2.innerHTML = data[i]['guest_list_band'];
-                cell3.innerHTML = data[i]['guest_list_type'];
-                // Check in box
-                if (data[i]['guest_list_checkedin'] === "0") {
-                    cell4.innerHTML = `<center><input onclick='checkGuestList(`+data[i]['guest_list_id']+`)' class="form-check-input" type="checkbox" value="" id="flexCheckDefault"></input></center>`;
-                }
-                else {
-                    cell4.innerHTML = `<center><input onclick='checkGuestList(`+data[i]['guest_list_id']+`)' class="form-check-input" type="checkbox" checked value="" id="flexCheckDefault"></input></center>`;
-                }
-            }
-            console.log(data);
-            console.log("got guest list");
-        })
-        .fail(function(xhr, status, error){
-
-        })
-        .always(function() {
-
-        });
+// Format messages for different scan outcomes
+function formatCheckInSuccess(data) {
+    return `<b>CHECK IN SUCCESS</b><br>${data['Sicherheitscode']}<br><b>${data['Karte'].toUpperCase()}</b><br>${data['Name_des_K\u00e4ufers'].toUpperCase()}`;
 }
 
-function searchGuest() {
-    var input = document.getElementById("suche-input");
-    var filter = input.value.toUpperCase();
-    var table = document.getElementById("guest-list-table");
-    var tr = table.getElementsByTagName("tr");
-    for (i = 1; i < tr.length; i++) {
-        td = tr[i].getElementsByTagName("td")[0]; // for column one
-         td1 = tr[i].getElementsByTagName("td")[1]; // for column two
-    /* ADD columns here that you want you to filter to be used on */
-        if (td) {
-          if ( (td.innerHTML.toUpperCase().indexOf(filter) > -1) || (td1.innerHTML.toUpperCase().indexOf(filter) > -1) )  {            
-            tr[i].style.display = "";
-          } else {
-            tr[i].style.display = "none";
-          }
-        }
-      }
-
+function formatAlreadyCheckedIn(data) {
+    return `<b>ALREADY CHECKED IN</b><br>${data['Sicherheitscode']}<br>${data['Karte'].toUpperCase()}<br>${data['Name_des_K\u00e4ufers'].toUpperCase()}<br><b>${data['Einchecken']}</b>`;
 }
 
-function checkGuestList(id) {
-    console.log("check guest list id: " + id);
-    var response = $.ajax(
-        {
-            type: "POST",
-            url: "check-guest-list.php",
-            data: {id: id},
-            async: false,
-        })
-        .done(function(response) {
-            
-        })
-        .fail(function(xhr, status, error){
+function formatNoCheckIn(data) {
+    return `<b>NO CHECK IN</b><br>${data['Sicherheitscode']}<br>${data['Karte'].toUpperCase()}<br>${data['Name_des_K\u00e4ufers'].toUpperCase()}<br>Zahlung: ${data['Bestellstatus'].toUpperCase()}<br>${data['Karte_ID'].toUpperCase()}`;
+}
 
-        })
-        .always(function() {
+// Handle AJAX errors
+function handleError(xhr) {
+    const resultBox = document.getElementById("result-box");
+    const errorMessage = `${xhr.status}: ${xhr.statusText}`;
+    showScanResult(resultBox, `Error: ${errorMessage}`, "btn-warning");
+}
 
-        });
+// Update scan history and UI
+function updateHistory(code, data) {
+    const time = new Date().toUTCString();
+    const entry = [time, data['Karte'] || "-", code, scanHistoryInfo];
+
+    scanHistArr.push(entry);
+    localStorage.setItem("scanHistoryInfo", JSON.stringify(scanHistArr));
+
+    addHistoryTableRow(entry);
+
+    if (scanHistArr.length > 5) {
+        const table = document.getElementById("history-table");
+        if (table && table.rows.length > 6) table.deleteRow(6);
+    }
+}
+
+// Populate history table rows
+function loadHistoryTable() {
+    const table = document.getElementById("history-table");
+    if (!table) return;
+
+    scanHistArr.slice(0, 5).forEach((entry) => addHistoryTableRow(entry));
+}
+
+function addHistoryTableRow(entry) {
+    const table = document.getElementById("history-table");
+    if (!table) return;
+
+    const row = table.insertRow(1);
+    entry.forEach((item) => {
+        const cell = row.insertCell();
+        cell.innerHTML = item;
+    });
 }
